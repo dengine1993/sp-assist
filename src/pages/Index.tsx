@@ -65,10 +65,10 @@ const Index = () => {
         }]);
       } else {
         setMessages([{
-          id: "1",
-          role: "assistant",
+      id: "1",
+      role: "assistant",
           content: "Здравствуйте! Я SP-Агент — помощник по строительным нормам.\n\n⚠️ В системе пока нет загруженных документов. Обратитесь к администратору для загрузки документов СП.",
-          timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
         }]);
       }
     } catch (error) {
