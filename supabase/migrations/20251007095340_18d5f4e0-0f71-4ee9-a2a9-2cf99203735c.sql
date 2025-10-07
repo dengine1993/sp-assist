@@ -34,7 +34,8 @@ RETURNS TABLE (
   content TEXT,
   similarity FLOAT,
   metadata JSONB,
-  chunk_index INTEGER
+  chunk_index INTEGER,
+  document_name TEXT
 )
 LANGUAGE plpgsql
 AS $$
@@ -45,7 +46,8 @@ BEGIN
     document_chunks.content,
     1 - (document_chunks.embedding <=> query_embedding) AS similarity,
     document_chunks.metadata,
-    document_chunks.chunk_index
+    document_chunks.chunk_index,
+    document_chunks.document_name
   FROM public.document_chunks
   WHERE 
     (doc_name IS NULL OR document_chunks.document_name = doc_name)

@@ -20,10 +20,10 @@ export const Header = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                SP-Assistant
+                SP-Агент
               </h1>
               <p className="text-xs text-muted-foreground">
-                Помощник по СП 60.13330.2020
+                Помощник по строительным нормам
               </p>
             </div>
           </div>
@@ -36,23 +36,30 @@ export const Header = () => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>О SP-Assistant</DialogTitle>
+                <DialogTitle>О SP-Агенте</DialogTitle>
                 <DialogDescription className="space-y-3 pt-2">
                   <p>
-                    SP-Assistant — это интеллектуальный помощник для работы со сводом правил 
-                    <strong> СП 60.13330.2020</strong> "Отопление, вентиляция и кондиционирование воздуха".
+                    SP-Агент — это универсальный интеллектуальный помощник для работы со 
+                    строительными нормами и правилами (СП).
                   </p>
                   <p>
-                    Задавайте вопросы по ОВиК, и ассистент найдет ответы строго на основе 
-                    официального документа.
+                    Задавайте вопросы по любым загруженным документам СП, и агент найдет ответы 
+                    строго на основе официальных документов.
                   </p>
                   <div className="bg-muted p-3 rounded-lg">
                     <p className="text-sm font-semibold mb-1">Возможности:</p>
                     <ul className="text-sm space-y-1 list-disc list-inside">
-                      <li>Поиск по СП 60.13330.2020</li>
+                      <li>Поиск по всем загруженным документам СП</li>
                       <li>Ответы на технические вопросы</li>
-                      <li>Ссылки на конкретные пункты документа</li>
+                      <li>Ссылки на конкретные документы и разделы</li>
+                      <li>Работа только с проверенными нормативами</li>
                     </ul>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 rounded-lg">
+                    <p className="text-sm text-amber-900 dark:text-amber-100">
+                      <strong>Примечание:</strong> Документы СП загружаются администратором через 
+                      специальную панель управления.
+                    </p>
                   </div>
                 </DialogDescription>
               </DialogHeader>

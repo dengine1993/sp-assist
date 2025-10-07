@@ -1,10 +1,23 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Header } from "@/components/Header";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
-import { PdfProcessor } from "@/components/PdfProcessor";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileText, Shield, RefreshCw, User, LogIn, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Message {
   id: string;
@@ -14,16 +27,60 @@ interface Message {
 }
 
 const Index = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Здравствуйте! Я SP-Assistant — помощник по СП 60.13330.2020 \"Отопление, вентиляция и кондиционирование воздуха\". Задайте мне вопрос или используйте кнопку поиска для работы с документом.",
-      timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const navigate = useNavigate();
+  const { user, isAdmin, logout } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadedDocuments, setLoadedDocuments] = useState<string[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success('Выход выполнен');
+  };
+
+  // Load available documents
+  const loadDocuments = async () => {
+    setIsLoadingDocs(true);
+    try {
+      const { data, error } = await supabase
+        .from('document_chunks')
+        .select('document_name')
+        .order('document_name');
+
+      if (error) throw error;
+
+      // Get unique document names
+      const uniqueDocs = [...new Set(data?.map(chunk => chunk.document_name) || [])];
+      setLoadedDocuments(uniqueDocs);
+
+      // Set initial greeting based on loaded documents
+      if (uniqueDocs.length > 0) {
+        setMessages([{
+          id: "1",
+          role: "assistant",
+          content: `Здравствуйте! Я SP-Агент — универсальный помощник по строительным нормам и правилам.\n\n📚 В системе загружено документов: ${uniqueDocs.length}\n${uniqueDocs.map(doc => `• ${doc}`).join('\n')}\n\nЗадайте мне вопрос по любому из загруженных документов!`,
+          timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
+        }]);
+      } else {
+        setMessages([{
+          id: "1",
+          role: "assistant",
+          content: "Здравствуйте! Я SP-Агент — помощник по строительным нормам.\n\n⚠️ В системе пока нет загруженных документов. Обратитесь к администратору для загрузки документов СП.",
+          timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -149,8 +206,93 @@ const Index = () => {
       <Header />
       
       <div className="border-b bg-card/50 backdrop-blur-sm px-4 py-3">
-        <div className="container mx-auto">
-          <PdfProcessor />
+        <div className="container mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            {isLoadingDocs ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw size={16} className="animate-spin" />
+                <span>Загрузка документов...</span>
+              </div>
+            ) : loadedDocuments.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText size={16} className="text-primary" />
+                  <span className="font-medium">Загружено документов: {loadedDocuments.length}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {loadedDocuments.slice(0, 3).map((doc) => (
+                    <Badge key={doc} variant="secondary" className="text-xs">
+                      {doc}
+                    </Badge>
+                  ))}
+                  {loadedDocuments.length > 3 && (
+                    <Badge variant="secondary" className="text-xs">
+                      +{loadedDocuments.length - 3} ещё
+                    </Badge>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                <FileText size={16} />
+                <span>Нет загруженных документов</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin')}
+                className="gap-2"
+              >
+                <Shield size={16} />
+                Админ-панель
+              </Button>
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <User size={16} />
+                    {user.user_metadata?.full_name || 'Профиль'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User size={16} className="mr-2" />
+                    Личный кабинет
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogIn size={16} className="mr-2" />
+                    Выйти
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/user-login')}
+                  className="gap-2"
+                >
+                  <LogIn size={16} />
+                  Вход
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/register')}
+                  className="gap-2"
+                >
+                  <UserPlus size={16} />
+                  Регистрация
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
       

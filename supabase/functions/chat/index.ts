@@ -63,23 +63,36 @@ serve(async (req) => {
         console.log('Creating embedding for user question');
         const queryEmbedding = await createEmbedding(lastUserMessage.content, openaiApiKey);
 
-        // Search for similar chunks
+        // Search for similar chunks across ALL documents
         console.log('Searching for similar chunks in database');
         const { data: chunks, error } = await supabase.rpc('search_similar_chunks', {
           query_embedding: queryEmbedding,
           match_threshold: 0.7,
           match_count: 5,
-          doc_name: 'sp-60-13330-2020'
+          doc_name: null  // Search across all documents
         });
 
         if (error) {
           console.error('Error searching chunks:', error);
         } else if (chunks && chunks.length > 0) {
           console.log(`Found ${chunks.length} relevant chunks`);
-          contextFromPDF = '\n\nРелевантные разделы из СП 60.13330.2020:\n\n' +
-            chunks.map((chunk: any, idx: number) => 
-              `[${idx + 1}] ${chunk.content}\n(релевантность: ${(chunk.similarity * 100).toFixed(1)}%)`
-            ).join('\n\n');
+          
+          // Group chunks by document name
+          const chunksByDoc = chunks.reduce((acc: any, chunk: any) => {
+            const docName = chunk.document_name || 'Неизвестный документ';
+            if (!acc[docName]) acc[docName] = [];
+            acc[docName].push(chunk);
+            return acc;
+          }, {});
+
+          contextFromPDF = '\n\nРелевантные разделы из загруженных строительных норм:\n\n';
+          
+          Object.entries(chunksByDoc).forEach(([docName, docChunks]: [string, any]) => {
+            contextFromPDF += `\n📄 ${docName}:\n`;
+            docChunks.forEach((chunk: any, idx: number) => {
+              contextFromPDF += `[${idx + 1}] ${chunk.content}\n(релевантность: ${(chunk.similarity * 100).toFixed(1)}%)\n\n`;
+            });
+          });
         } else {
           console.log('No relevant chunks found');
         }
@@ -89,12 +102,17 @@ serve(async (req) => {
     }
 
     // Prepare system message with context
-    const systemContent = `Вы - SP-Assistant, помощник по строительным нормам и правилам СП 60.13330.2020 "Отопление, вентиляция и кондиционирование воздуха".
+    const systemContent = `Вы - SP-Агент, универсальный помощник по строительным нормам и правилам (СП).
 
-Отвечайте четко, по делу и профессионально, основываясь на предоставленном контексте из документа.
+ВАЖНО: Вы работаете ТОЛЬКО с документами СП, загруженными администратором в систему. НЕ используйте информацию из интернета или другие источники.
 
-Если в контексте есть релевантная информация - используйте её для ответа и ссылайтесь на конкретные разделы.
-Если контекста недостаточно - честно скажите об этом.${contextFromPDF}`;
+Правила работы:
+1. Отвечайте ТОЛЬКО на основе предоставленного контекста из загруженных документов СП
+2. Если в контексте есть релевантная информация - используйте её и обязательно указывайте из какого именно СП взята информация
+3. Если контекста недостаточно для ответа - честно скажите: "В загруженных документах СП нет информации по этому вопросу"
+4. НЕ придумывайте информацию и НЕ используйте знания вне загруженных документов
+5. Когда цитируете документ, всегда упоминайте его название
+6. Отвечайте четко, профессионально и по существу${contextFromPDF}`;
 
     console.log('Sending request to OpenRouter with RAG context');
 
