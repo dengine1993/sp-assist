@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
+import { PdfProcessor } from "@/components/PdfProcessor";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -147,9 +148,15 @@ const Index = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-muted/30">
       <Header />
       
+      <div className="border-b bg-card/50 backdrop-blur-sm px-4 py-3">
+        <div className="container mx-auto">
+          <PdfProcessor />
+        </div>
+      </div>
+      
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col">
         <div className="flex-1 mb-6 bg-card rounded-xl shadow-elegant border border-border overflow-hidden">
-          <ScrollArea ref={scrollAreaRef} className="h-[calc(100vh-280px)]">
+          <ScrollArea ref={scrollAreaRef} className="h-[calc(100vh-340px)]">
             <div className="p-6 space-y-4">
               {messages.map((message) => (
                 <ChatMessage
@@ -165,7 +172,7 @@ const Index = () => {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Думаю...</p>
+                    <p className="text-sm text-muted-foreground">SP-Assistant анализирует документ...</p>
                   </div>
                 </div>
               )}
