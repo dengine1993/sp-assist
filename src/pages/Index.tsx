@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
@@ -22,6 +22,16 @@ const Index = () => {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -34,17 +44,96 @@ const Index = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI response (will be replaced with actual AI when Lovable Cloud is enabled)
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "Функция AI-ответов будет доступна после подключения Lovable Cloud. Пока что я могу помочь вам с базовой информацией о СП 60.13330.2020.",
-        timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
+    try {
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+      
+      const allMessages = [...messages, userMessage].map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
+      const response = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ messages: allMessages }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to start stream');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let streamDone = false;
+      let assistantContent = '';
+      let assistantMessageId = (Date.now() + 1).toString();
+
+      const createOrUpdateAssistantMessage = (content: string) => {
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage?.role === 'assistant' && lastMessage.id === assistantMessageId) {
+            return prev.map(m => 
+              m.id === assistantMessageId 
+                ? { ...m, content } 
+                : m
+            );
+          }
+          return [...prev, {
+            id: assistantMessageId,
+            role: 'assistant' as const,
+            content,
+            timestamp: new Date().toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })
+          }];
+        });
       };
-      setMessages(prev => [...prev, assistantMessage]);
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') {
+            streamDone = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              createOrUpdateAssistantMessage(assistantContent);
+            }
+          } catch {
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
       setIsLoading(false);
-    }, 1000);
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast.error('Ошибка при отправке сообщения', {
+        description: 'Пожалуйста, попробуйте еще раз'
+      });
+      setIsLoading(false);
+    }
   };
 
   const handleSearchSP = () => {
@@ -60,7 +149,7 @@ const Index = () => {
       
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col">
         <div className="flex-1 mb-6 bg-card rounded-xl shadow-elegant border border-border overflow-hidden">
-          <ScrollArea className="h-[calc(100vh-280px)]">
+          <ScrollArea ref={scrollAreaRef} className="h-[calc(100vh-280px)]">
             <div className="p-6 space-y-4">
               {messages.map((message) => (
                 <ChatMessage
