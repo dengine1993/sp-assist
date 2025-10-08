@@ -7,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Function to split text into chunks (reduced for Jina AI token limits)
-function chunkText(text: string, maxChunkSize: number = 500): string[] {
+// Function to split text into chunks (Jina AI v3: 8192 tokens ≈ 200 chars for Cyrillic)
+function chunkText(text: string, maxChunkSize: number = 200): string[] {
   const chunks: string[] = [];
   const paragraphs = text.split('\n\n');
   let currentChunk = '';
