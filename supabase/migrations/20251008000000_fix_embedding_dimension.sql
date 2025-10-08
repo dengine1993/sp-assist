@@ -64,3 +64,4 @@ WITH CHECK (true);
 CREATE POLICY "Allow public delete access to document chunks"
 ON public.document_chunks FOR DELETE
 USING (true);
+

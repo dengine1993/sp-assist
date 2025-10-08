@@ -72,3 +72,4 @@ try {
 }
 
 Write-Host "💡 Подробная инструкция: НАСТРОЙКА_ENV.md`n" -ForegroundColor Cyan
+

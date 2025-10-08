@@ -103,3 +103,4 @@ npm install
 1. URL проекта корректен: `https://xcfywgwbzisuflngcwme.supabase.co`
 2. Anon Key скопирован полностью без пробелов
 3. Проект активен в Supabase Dashboard
+
