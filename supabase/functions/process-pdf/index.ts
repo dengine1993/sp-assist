@@ -7,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Function to split text into chunks (Jina AI v3: 8192 tokens ≈ 200 chars for Cyrillic)
-function chunkText(text: string, maxChunkSize: number = 200): string[] {
+// Function to split text into chunks (ultra-conservative for Cyrillic tokenization)
+function chunkText(text: string, maxChunkSize: number = 100): string[] {
   const chunks: string[] = [];
   const paragraphs = text.split('\n\n');
   let currentChunk = '';
@@ -99,8 +99,18 @@ serve(async (req) => {
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
       
+      // Log chunk sizes for debugging
+      console.log(`Batch ${i / batchSize + 1}: chunk sizes:`, batch.map(c => c.length));
+      
       const embeddings = await Promise.all(
-        batch.map(chunk => createEmbedding(chunk, jinaApiKey))
+        batch.map(async (chunk, idx) => {
+          try {
+            return await createEmbedding(chunk, jinaApiKey);
+          } catch (err) {
+            console.error(`Error processing chunk ${i + idx} (length: ${chunk.length}):`, err);
+            throw err;
+          }
+        })
       );
 
       // Insert chunks with embeddings
