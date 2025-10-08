@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "load-sp-pdf": "node scripts/load-sp-document.mjs",
     "load-sp-txt": "node scripts/load-sp-from-txt.mjs",
-    "check-document": "node scripts/check-document.mjs"
+    "check-document": "node scripts/check-document.mjs",
+    "apply-fix": "node scripts/apply-fix.mjs",
+    "check-fix": "node scripts/check-fix-status.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
