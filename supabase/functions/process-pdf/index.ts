@@ -29,23 +29,24 @@ function chunkText(text: string, maxChunkSize: number = 1000): string[] {
   return chunks.filter(chunk => chunk.length > 50); // Filter out very small chunks
 }
 
-// Function to create embeddings using OpenAI
+// Function to create embeddings using Jina AI
 async function createEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetch('https://api.jina.ai/v1/embeddings', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text,
+      model: 'jina-embeddings-v3',
+      input: [text],
+      task: 'retrieval.passage'
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
+    throw new Error(`Jina AI API error: ${error}`);
   }
 
   const data = await response.json();
@@ -67,9 +68,9 @@ serve(async (req) => {
     console.log(`Processing document: ${documentName}`);
     console.log(`Text length: ${pdfText.length} characters`);
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    const jinaApiKey = Deno.env.get('JINA_API_KEY');
+    if (!jinaApiKey) {
+      throw new Error('JINA_API_KEY is not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -99,7 +100,7 @@ serve(async (req) => {
       const batch = chunks.slice(i, i + batchSize);
       
       const embeddings = await Promise.all(
-        batch.map(chunk => createEmbedding(chunk, openaiApiKey))
+        batch.map(chunk => createEmbedding(chunk, jinaApiKey))
       );
 
       // Insert chunks with embeddings

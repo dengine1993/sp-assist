@@ -7,23 +7,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Function to create embeddings using OpenAI
+// Function to create embeddings using Jina AI
 async function createEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetch('https://api.jina.ai/v1/embeddings', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text,
+      model: 'jina-embeddings-v3',
+      input: [text],
+      task: 'retrieval.query'
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
+    throw new Error(`Jina AI API error: ${error}`);
   }
 
   const data = await response.json();
@@ -39,14 +40,14 @@ serve(async (req) => {
     const { messages } = await req.json();
     console.log('Starting RAG-enhanced chat request');
 
-    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const jinaApiKey = Deno.env.get('JINA_API_KEY');
     
-    if (!openRouterApiKey) {
-      throw new Error('OPENROUTER_API_KEY is not configured');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    if (!jinaApiKey) {
+      throw new Error('JINA_API_KEY is not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -61,7 +62,7 @@ serve(async (req) => {
       try {
         // Create embedding for the user's question
         console.log('Creating embedding for user question');
-        const queryEmbedding = await createEmbedding(lastUserMessage.content, openaiApiKey);
+        const queryEmbedding = await createEmbedding(lastUserMessage.content, jinaApiKey);
 
         // Search for similar chunks across ALL documents
         console.log('Searching for similar chunks in database');
@@ -114,18 +115,16 @@ serve(async (req) => {
 5. Когда цитируете документ, всегда упоминайте его название
 6. Отвечайте четко, профессионально и по существу${contextFromPDF}`;
 
-    console.log('Sending request to OpenRouter with RAG context');
+    console.log('Sending request to Lovable AI (Gemini) with RAG context');
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openRouterApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://lovable.app',
-        'X-Title': 'SP-Assistant'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3.1:free',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemContent },
           ...messages
@@ -135,10 +134,22 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Превышен лимит запросов. Попробуйте позже.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'Требуется пополнение баланса Lovable AI.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const errorText = await response.text();
-      console.error('OpenRouter API error:', response.status, errorText);
+      console.error('Lovable AI API error:', response.status, errorText);
       return new Response(
-        JSON.stringify({ error: 'OpenRouter API error', details: errorText }), 
+        JSON.stringify({ error: 'Lovable AI API error', details: errorText }), 
         {
           status: response.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
